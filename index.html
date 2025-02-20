@@ -83,6 +83,10 @@
     .toggle-button:hover {
       background-color: #696969;
     }
+    .range-slider-container {
+      margin: 20px auto;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -92,6 +96,15 @@
       <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
       <input type="range" id="yearSlider" min="2015" max="2023" value="2015" step="1">
     </div>
+
+    <!-- Two-way slider container -->
+    <div class="range-slider-container hidden" id="rangeSliderContainer">
+      <label>Start Year: <span id="startYearValue">2015</span></label>
+      <input type="range" id="startYearSlider" min="2015" max="2023" value="2015" step="1">
+      <label>End Year: <span id="endYearValue">2023</span></label>
+      <input type="range" id="endYearSlider" min="2015" max="2023" value="2023" step="1">
+    </div>
+
     <div class="search-bar">
       <input type="text" id="countrySearch" list="countryList" placeholder="Search Country...">
       <datalist id="countryList"></datalist>
@@ -144,7 +157,16 @@
         .interpolator(d3.interpolateRdYlGn)
         .range(["#ff0000", "#ffffbf", "#00ff00"]);
 
-      const updateMap = (year) => {
+      function anyScoreZeroInRange(countryName, startYear, endYear) {
+        // If any year's score is missing or zero in the range, return true
+        for (let y = startYear; y <= endYear; y++) {
+          const score = happinessByCountryAndYear[countryName]?.[y] || 0;
+          if (score === 0) return true;
+        }
+        return false;
+      }
+
+      const updateMap = (selectedYear) => {
         svg.selectAll(".country")
           .data(geoData.features)
           .join("path")
@@ -153,30 +175,43 @@
           .attr("fill", d => {
             const countryName = d.properties.name;
             if (showChanges) {
-              const happinessScore2015 = happinessByCountryAndYear[countryName]?.[2015] || 0;
-              const happinessScore2023 = happinessByCountryAndYear[countryName]?.[2023] || 0;
-              if (happinessScore2015 === 0 || happinessScore2023 === 0) {
-                return changeColorScale(0); // Mark as no change if any score is 0
+              // Use startYear, endYear to compute difference
+              const startYear = +d3.select("#startYearSlider").property("value");
+              const endYear = +d3.select("#endYearSlider").property("value");
+
+              if (anyScoreZeroInRange(countryName, startYear, endYear)) {
+                return changeColorScale(0);
               }
-              const happinessChange = happinessScore2023 - happinessScore2015;
-              return changeColorScale(happinessChange);
+              const startScore = happinessByCountryAndYear[countryName]?.[startYear] || 0;
+              const endScore = happinessByCountryAndYear[countryName]?.[endYear] || 0;
+              const change = endScore - startScore;
+              return changeColorScale(change);
             } else {
-              const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
+              const happinessScore = happinessByCountryAndYear[countryName]?.[selectedYear] || 0;
               return colorScale(happinessScore);
             }
           })
           .on("mouseover", function (event, d) {
             const countryName = d.properties.name;
             if (showChanges) {
-              const happinessScore2015 = happinessByCountryAndYear[countryName]?.[2015] || 0;
-              const happinessScore2023 = happinessByCountryAndYear[countryName]?.[2023] || 0;
-              const happinessChange = happinessScore2023 - happinessScore2015;
-              tooltip.style("display", "block")
-                .html(`<strong>${countryName}</strong><br>Happiness Change: ${happinessChange.toFixed(2)}`)
-                .style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY + 10) + "px");
+              const startY = +d3.select("#startYearSlider").property("value");
+              const endY = +d3.select("#endYearSlider").property("value");
+              if (anyScoreZeroInRange(d.properties.name, startY, endY)) {
+                tooltip.style("display", "block")
+                  .html(`<strong>${d.properties.name}</strong><br>Happiness Change: 0`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              } else {
+                const startScore = happinessByCountryAndYear[d.properties.name]?.[startY] || 0;
+                const endScore = happinessByCountryAndYear[d.properties.name]?.[endY] || 0;
+                const change = endScore - startScore;
+                tooltip.style("display", "block")
+                  .html(`<strong>${d.properties.name}</strong><br>Happiness Change: ${change.toFixed(2)}`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              }
             } else {
-              const happinessScore = happinessByCountryAndYear[countryName]?.[year] || "No Data";
+              const happinessScore = happinessByCountryAndYear[countryName]?.[selectedYear] || "No Data";
               tooltip.style("display", "block")
                 .html(`<strong>${countryName}</strong><br>Happiness Score: ${happinessScore}`)
                 .style("left", (event.pageX + 10) + "px")
@@ -285,15 +320,31 @@
         showChanges = !showChanges;
         if (showChanges) {
           d3.select("#mapTitle").text("World Happiness Change Choropleth");
-          d3.select("#toggleMap").text("Happiness Map");
+          d3.select("#toggleMap").text("Show Happiness Map");
           d3.select("#yearSliderContainer").classed("hidden", true);
+          d3.select("#rangeSliderContainer").classed("hidden", false);
         } else {
           d3.select("#mapTitle").text("World Happiness Choropleth");
-          d3.select("#toggleMap").text("Show Changes");
+          d3.select("#toggleMap").text("Show Changes in Happiness");
           d3.select("#yearSliderContainer").classed("hidden", false);
+          d3.select("#rangeSliderContainer").classed("hidden", true);
         }
         updateMap(d3.select("#yearSlider").property("value"));
         updateLegend();
+      });
+
+      // Listen for changes in the two-way sliders
+      d3.select("#startYearSlider").on("input", function() {
+        d3.select("#startYearValue").text(this.value);
+        if (showChanges) {
+          updateMap(d3.select("#yearSlider").property("value"));
+        }
+      });
+      d3.select("#endYearSlider").on("input", function() {
+        d3.select("#endYearValue").text(this.value);
+        if (showChanges) {
+          updateMap(d3.select("#yearSlider").property("value"));
+        }
       });
 
       updateMap(2015);
