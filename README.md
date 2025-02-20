@@ -68,6 +68,7 @@ An interactive visualization project analyzing global happiness trends from 2015
 - HTML5/CSS3 for structure and styling
 - Modern JavaScript (ES6+)
 - Responsive design principles
+- Plotly.js for scatter plot and correlation heatmap
 
 ## Data Sources
 - World Happiness Report datasets (2015-2024)
