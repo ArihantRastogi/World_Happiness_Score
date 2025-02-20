@@ -6,58 +6,93 @@
   <title>World Happiness Choropleth</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    .country {
-      stroke: #fff;
-      stroke-width: 0.5px;
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      text-align: center;
+      margin: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+    }
+    .slider, .search-bar {
+      margin: 20px auto;
+      text-align: center;
+    }
+    .search-bar {
+      position: relative;
+      display: inline-block;
+    }
+    .search-bar input {
+      padding: 8px;
+      font-size: 14px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .search-bar button {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
     }
     .tooltip {
       position: absolute;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
       color: #fff;
-      padding: 5px;
+      padding: 8px;
       border-radius: 5px;
-      pointer-events: none;
       font-size: 12px;
+      pointer-events: none;
     }
     .legend {
-      font-size: 12px;
+      font-size: 14px;
+      fill: #333;
+      position: absolute;
+      right: 20px;
+      top: 100px;
     }
     .legend rect {
       stroke: #000;
       stroke-width: 1px;
     }
-    .slider {
-      margin: 20px;
-    }
   </style>
 </head>
 <body>
-  <h1>World Happiness Choropleth</h1>
-  <div class="slider">
-    <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
-    <input type="range" id="yearSlider" min="2015" max="2020" value="2015" step="1">
+  <div class="container">
+    <h1>World Happiness Choropleth</h1>
+    <div class="slider">
+      <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
+      <input type="range" id="yearSlider" min="2015" max="2020" value="2015" step="1">
+    </div>
+    <div class="search-bar">
+      <input type="text" id="countrySearch" list="countryList" placeholder="Search Country...">
+      <datalist id="countryList"></datalist>
+      <button id="resetSearch">&#x2715;</button>
+    </div>
   </div>
-  <div class="search-bar">
-    <label for="countrySearch">Search Country: </label>
-    <input type="text" id="countrySearch" placeholder="Enter country name">
-  </div>
-  <svg id="map" width="2560" height="1600" viewBox="0 0 2560 1600" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <svg id="map" width="100%" height="700" viewBox="0 0 1600 700"></svg>
   <div class="tooltip" style="display: none;"></div>
+  <svg class="legend" width="100" height="200"></svg>
 
   <script>
     const width = 1600;
     const height = 700;
-
-    // Projection and path generator
-    const projection = d3.geoMercator()
-      .scale(150)
-      .translate([width / 2, height / 1.5]);
+    const projection = d3.geoMercator().scale(150).translate([width / 2, height / 1.5]);
     const path = d3.geoPath().projection(projection);
-
     const svg = d3.select("#map");
+    const legendSvg = d3.select(".legend");
     const tooltip = d3.select(".tooltip");
 
-    // Load GeoJSON and happiness data
     Promise.all([
       d3.json("https://enjalot.github.io/wwsd/data/world/world-110m.geojson"),
       d3.csv("final.csv")
@@ -70,12 +105,35 @@
         happinessByCountryAndYear[d.country][d.year] = +d.happiness_score;
       });
 
-      // Create a color scale
-      const colorScale = d3.scaleThreshold()
-        .domain([3, 4, 5, 6, 7, 8, 9])
-        .range(d3.schemeBlues[8]);
+      const countryNames = [...new Set(happinessData.map(d => d.country))];
+      const datalist = d3.select("#countryList");
+      datalist.selectAll("option")
+        .data(countryNames)
+        .enter()
+        .append("option")
+        .attr("value", d => d);
 
-      // Function to update the map based on the selected year
+      const colorScale = d3.scaleThreshold()
+        .domain([1, 2, 3, 4, 5, 6, 7, 8])
+        .range(["#c4d8f5", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c", "#123d78", "#041e42"]);
+
+      const legendData = [0, 3, 4, 5, 6, 7, 8, 9];
+      legendSvg.selectAll("rect")
+        .data(legendData)
+        .enter().append("rect")
+        .attr("x", 10)
+        .attr("y", (d, i) => i * 20)
+        .attr("width", 20)
+        .attr("height", 20)
+        .attr("fill", d => colorScale(d));
+
+      legendSvg.selectAll("text")
+        .data(legendData)
+        .enter().append("text")
+        .attr("x", 40)
+        .attr("y", (d, i) => i * 20 + 15)
+        .text(d => d > 9 ? `>9` : `${d}`);
+
       const updateMap = (year) => {
         svg.selectAll(".country")
           .data(geoData.features)
@@ -89,80 +147,52 @@
           })
           .on("mouseover", function (event, d) {
             const countryName = d.properties.name;
-            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
+            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || "No Data";
             tooltip.style("display", "block")
               .html(`<strong>${countryName}</strong><br>Happiness Score: ${happinessScore}`)
               .style("left", (event.pageX + 10) + "px")
               .style("top", (event.pageY + 10) + "px");
             d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.5);
-            svg.selectAll(".country").attr("opacity", 0.5);
-            d3.select(this).attr("opacity", 1);
-          })
-          .on("mousemove", function (event) {
-            tooltip.style("left", (event.pageX + 10) + "px")
-              .style("top", (event.pageY + 10) + "px");
           })
           .on("mouseout", function () {
             tooltip.style("display", "none");
             d3.select(this).attr("stroke", null);
-            svg.selectAll(".country").attr("opacity", 1);
           });
       };
 
-      // Initial map rendering
+      function highlightCountry(countryName) {
+        svg.selectAll(".country")
+          .attr("opacity", d =>
+            d.properties.name.toLowerCase() === countryName.toLowerCase() && countryName !== ""
+            ? 1
+            : 0.3
+          )
+          .attr("stroke-width", d =>
+            d.properties.name.toLowerCase() === countryName.toLowerCase()
+            ? 2
+            : 0.5
+          );
+      }
+
+      function resetSearch() {
+        d3.select("#countrySearch").property("value", "");
+        svg.selectAll(".country")
+          .attr("opacity", 1)
+          .attr("stroke-width", 0.5);
+      }
+
+      d3.select("#countrySearch").on("input", function() {
+        highlightCountry(this.value);
+      });
+
+      d3.select("#resetSearch").on("click", resetSearch);
+
       updateMap(2015);
-
-      // Add legend
-      const legend = svg.append("g")
-        .attr("class", "legend")
-        .attr("transform", "translate(20, 20)");
-
-      const legendData = [0, 3, 4, 5, 6, 7, 8, 9];
-      const legendColors = legendData.map(d => colorScale(d));
-
-      legend.selectAll("rect")
-        .data(legendData)
-        .enter()
-        .append("rect")
-          .attr("x", 0)
-          .attr("y", (d, i) => i * 20)
-          .attr("width", 20)
-          .attr("height", 20)
-          .attr("fill", (d, i) => legendColors[i]);
-
-      legend.selectAll("text")
-        .data(legendData)
-        .enter()
-        .append("text")
-          .attr("x", 30)
-          .attr("y", (d, i) => i * 20 + 15)
-          .text(d => d > 9 ? `>9` : `${d}`);
-
-      // Update map based on slider
       d3.select("#yearSlider").on("input", function () {
-        const year = +this.value;
-        d3.select("#yearValue").text(year);
-        updateMap(year);
+        d3.select("#yearValue").text(this.value);
+        updateMap(+this.value);
       });
     }).catch(err => console.error(err));
-
-    function highlightCountry(countryName) {
-      svg.selectAll(".country")
-        .attr("opacity", d =>
-          d.properties.name.toLowerCase() === countryName.toLowerCase() && countryName !== ""
-          ? 1
-          : 0.3
-        )
-        .attr("stroke-width", d =>
-          d.properties.name.toLowerCase() === countryName.toLowerCase()
-          ? 2
-          : 0.5
-        );
-    }
-
-    d3.select("#countrySearch").on("input", function() {
-      highlightCountry(this.value);
-    });
   </script>
 </body>
 </html>
