@@ -64,20 +64,40 @@
       stroke: #000;
       stroke-width: 1px;
     }
+    .hidden {
+      display: none;
+    }
+    .toggle-button {
+      background-color: #808080;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .toggle-button:hover {
+      background-color: #696969;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>World Happiness Choropleth</h1>
-    <div class="slider">
+    <h1 id="mapTitle">World Happiness Choropleth</h1>
+    <div class="slider" id="yearSliderContainer">
       <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
-      <input type="range" id="yearSlider" min="2015" max="2020" value="2015" step="1">
+      <input type="range" id="yearSlider" min="2015" max="2023" value="2015" step="1">
     </div>
     <div class="search-bar">
       <input type="text" id="countrySearch" list="countryList" placeholder="Search Country...">
       <datalist id="countryList"></datalist>
       <button id="resetSearch">&#x2715;</button>
     </div>
+    <button id="toggleMap" class="toggle-button">Show Changes</button>
   </div>
 
   <svg id="map" width="100%" height="700" viewBox="0 0 1600 700"></svg>
@@ -92,6 +112,8 @@
     const svg = d3.select("#map");
     const legendSvg = d3.select(".legend");
     const tooltip = d3.select(".tooltip");
+
+    let showChanges = false;
 
     Promise.all([
       d3.json("https://enjalot.github.io/wwsd/data/world/world-110m.geojson"),
@@ -117,22 +139,10 @@
         .domain([1, 2, 3, 4, 5, 6, 7, 8])
         .range(["#c4d8f5", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c", "#123d78", "#041e42"]);
 
-      const legendData = [0, 3, 4, 5, 6, 7, 8, 9];
-      legendSvg.selectAll("rect")
-        .data(legendData)
-        .enter().append("rect")
-        .attr("x", 10)
-        .attr("y", (d, i) => i * 20)
-        .attr("width", 20)
-        .attr("height", 20)
-        .attr("fill", d => colorScale(d));
-
-      legendSvg.selectAll("text")
-        .data(legendData)
-        .enter().append("text")
-        .attr("x", 40)
-        .attr("y", (d, i) => i * 20 + 15)
-        .text(d => d > 9 ? `>9` : `${d}`);
+      const changeColorScale = d3.scaleDiverging()
+        .domain([-3, 0, 3])
+        .interpolator(d3.interpolateRdYlGn)
+        .range(["#ff0000", "#ffffbf", "#00ff00"]);
 
       const updateMap = (year) => {
         svg.selectAll(".country")
@@ -142,22 +152,106 @@
           .attr("d", path)
           .attr("fill", d => {
             const countryName = d.properties.name;
-            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
-            return colorScale(happinessScore);
+            if (showChanges) {
+              const happinessScore2015 = happinessByCountryAndYear[countryName]?.[2015] || 0;
+              const happinessScore2023 = happinessByCountryAndYear[countryName]?.[2023] || 0;
+              if (happinessScore2015 === 0 || happinessScore2023 === 0) {
+                return changeColorScale(0); // Mark as no change if any score is 0
+              }
+              const happinessChange = happinessScore2023 - happinessScore2015;
+              return changeColorScale(happinessChange);
+            } else {
+              const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
+              return colorScale(happinessScore);
+            }
           })
           .on("mouseover", function (event, d) {
             const countryName = d.properties.name;
-            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || "No Data";
-            tooltip.style("display", "block")
-              .html(`<strong>${countryName}</strong><br>Happiness Score: ${happinessScore}`)
-              .style("left", (event.pageX + 10) + "px")
-              .style("top", (event.pageY + 10) + "px");
+            if (showChanges) {
+              const happinessScore2015 = happinessByCountryAndYear[countryName]?.[2015] || 0;
+              const happinessScore2023 = happinessByCountryAndYear[countryName]?.[2023] || 0;
+              const happinessChange = happinessScore2023 - happinessScore2015;
+              tooltip.style("display", "block")
+                .html(`<strong>${countryName}</strong><br>Happiness Change: ${happinessChange.toFixed(2)}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px");
+            } else {
+              const happinessScore = happinessByCountryAndYear[countryName]?.[year] || "No Data";
+              tooltip.style("display", "block")
+                .html(`<strong>${countryName}</strong><br>Happiness Score: ${happinessScore}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px");
+            }
             d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.5);
           })
           .on("mouseout", function () {
             tooltip.style("display", "none");
             d3.select(this).attr("stroke", null);
           });
+      };
+
+      const updateLegend = () => {
+        legendSvg.selectAll("*").remove();
+        if (showChanges) {
+          const gradient = legendSvg.append("defs")
+            .append("linearGradient")
+            .attr("id", "gradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "0%")
+            .attr("y2", "100%");
+
+          gradient.append("stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "#ff0000");
+
+          gradient.append("stop")
+            .attr("offset", "50%")
+            .attr("stop-color", "#ffffbf");
+
+          gradient.append("stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "#00ff00");
+
+          legendSvg.append("rect")
+            .attr("x", 10)
+            .attr("y", 10)
+            .attr("width", 20)
+            .attr("height", 120)
+            .style("fill", "url(#gradient)");
+
+          legendSvg.append("text")
+            .attr("x", 40)
+            .attr("y", 20)
+            .text("-");
+
+          legendSvg.append("text")
+            .attr("x", 40)
+            .attr("y", 70)
+            .text("0");
+
+          legendSvg.append("text")
+            .attr("x", 40)
+            .attr("y", 120)
+            .text("+");
+        } else {
+          const legendData = [0, 3, 4, 5, 6, 7, 8, 9];
+          legendSvg.selectAll("rect")
+            .data(legendData)
+            .enter().append("rect")
+            .attr("x", 10)
+            .attr("y", (d, i) => i * 20)
+            .attr("width", 20)
+            .attr("height", 20)
+            .attr("fill", d => colorScale(d));
+
+          legendSvg.selectAll("text")
+            .data(legendData)
+            .enter().append("text")
+            .attr("x", 40)
+            .attr("y", (d, i) => i * 20 + 15)
+            .text(d => d > 9 ? `>9` : `${d}`);
+        }
       };
 
       function highlightCountry(countryName) {
@@ -187,7 +281,23 @@
 
       d3.select("#resetSearch").on("click", resetSearch);
 
+      d3.select("#toggleMap").on("click", function() {
+        showChanges = !showChanges;
+        if (showChanges) {
+          d3.select("#mapTitle").text("World Happiness Change Choropleth");
+          d3.select("#toggleMap").text("Happiness Map");
+          d3.select("#yearSliderContainer").classed("hidden", true);
+        } else {
+          d3.select("#mapTitle").text("World Happiness Choropleth");
+          d3.select("#toggleMap").text("Show Changes");
+          d3.select("#yearSliderContainer").classed("hidden", false);
+        }
+        updateMap(d3.select("#yearSlider").property("value"));
+        updateLegend();
+      });
+
       updateMap(2015);
+      updateLegend();
       d3.select("#yearSlider").on("input", function () {
         d3.select("#yearValue").text(this.value);
         updateMap(+this.value);
