@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Happiness Choropleth</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .country {
+      stroke: #fff;
+      stroke-width: 0.5px;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 5px;
+      border-radius: 5px;
+      pointer-events: none;
+      font-size: 12px;
+    }
+    .legend {
+      font-size: 12px;
+    }
+    .legend rect {
+      stroke: #000;
+      stroke-width: 1px;
+    }
+    .slider {
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>World Happiness Choropleth</h1>
+  <div class="slider">
+    <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
+    <input type="range" id="yearSlider" min="2015" max="2020" value="2015" step="1">
+  </div>
+  <svg id="map" width="2560" height="1600" viewBox="0 0 2560 1600" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="tooltip" style="display: none;"></div>
+
+  <script>
+    const width = 1600;
+    const height = 700;
+
+    // Projection and path generator
+    const projection = d3.geoMercator()
+      .scale(150)
+      .translate([width / 2, height / 1.5]);
+    const path = d3.geoPath().projection(projection);
+
+    const svg = d3.select("#map");
+    const tooltip = d3.select(".tooltip");
+
+    // Load GeoJSON and happiness data
+    Promise.all([
+      d3.json("https://enjalot.github.io/wwsd/data/world/world-110m.geojson"),
+      d3.csv("final.csv")
+    ]).then(([geoData, happinessData]) => {
+      const happinessByCountryAndYear = {};
+      happinessData.forEach(d => {
+        if (!happinessByCountryAndYear[d.country]) {
+          happinessByCountryAndYear[d.country] = {};
+        }
+        happinessByCountryAndYear[d.country][d.year] = +d.happiness_score;
+      });
+
+      // Create a color scale
+      const colorScale = d3.scaleThreshold()
+        .domain([3, 4, 5, 6, 7, 8, 9])
+        .range(d3.schemeBlues[8]);
+
+      // Function to update the map based on the selected year
+      const updateMap = (year) => {
+        svg.selectAll(".country")
+          .data(geoData.features)
+          .join("path")
+          .attr("class", "country")
+          .attr("d", path)
+          .attr("fill", d => {
+            const countryName = d.properties.name;
+            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
+            return colorScale(happinessScore);
+          })
+          .on("mouseover", function (event, d) {
+            const countryName = d.properties.name;
+            const happinessScore = happinessByCountryAndYear[countryName]?.[year] || 0;
+            tooltip.style("display", "block")
+              .html(`<strong>${countryName}</strong><br>Happiness Score: ${happinessScore}`)
+              .style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY + 10) + "px");
+            d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.5);
+            svg.selectAll(".country").attr("opacity", 0.5);
+            d3.select(this).attr("opacity", 1);
+          })
+          .on("mousemove", function (event) {
+            tooltip.style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY + 10) + "px");
+          })
+          .on("mouseout", function () {
+            tooltip.style("display", "none");
+            d3.select(this).attr("stroke", null);
+            svg.selectAll(".country").attr("opacity", 1);
+          });
+      };
+
+      // Initial map rendering
+      updateMap(2015);
+
+      // Add legend
+      const legend = svg.append("g")
+        .attr("class", "legend")
+        .attr("transform", "translate(20, 20)");
+
+      const legendData = [0, 3, 4, 5, 6, 7, 8, 9];
+      const legendColors = legendData.map(d => colorScale(d));
+
+      legend.selectAll("rect")
+        .data(legendData)
+        .enter()
+        .append("rect")
+          .attr("x", 0)
+          .attr("y", (d, i) => i * 20)
+          .attr("width", 20)
+          .attr("height", 20)
+          .attr("fill", (d, i) => legendColors[i]);
+
+      legend.selectAll("text")
+        .data(legendData)
+        .enter()
+        .append("text")
+          .attr("x", 30)
+          .attr("y", (d, i) => i * 20 + 15)
+          .text(d => d > 9 ? `>9` : `${d}`);
+
+      // Update map based on slider
+      d3.select("#yearSlider").on("input", function () {
+        const year = +this.value;
+        d3.select("#yearValue").text(year);
+        updateMap(year);
+      });
+    }).catch(err => console.error(err));
+  </script>
+</body>
+</html>
