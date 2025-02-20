@@ -94,15 +94,15 @@
     <h1 id="mapTitle">World Happiness Choropleth</h1>
     <div class="slider" id="yearSliderContainer">
       <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
-      <input type="range" id="yearSlider" min="2015" max="2023" value="2015" step="1">
+      <input type="range" id="yearSlider" min="2015" max="2024" value="2015" step="1">
     </div>
 
     <!-- Two-way slider container -->
     <div class="range-slider-container hidden" id="rangeSliderContainer">
       <label>Start Year: <span id="startYearValue">2015</span></label>
-      <input type="range" id="startYearSlider" min="2015" max="2023" value="2015" step="1">
-      <label>End Year: <span id="endYearValue">2023</span></label>
-      <input type="range" id="endYearSlider" min="2015" max="2023" value="2023" step="1">
+      <input type="range" id="startYearSlider" min="2015" max="2024" value="2015" step="1">
+      <label>End Year: <span id="endYearValue">2024</span></label>
+      <input type="range" id="endYearSlider" min="2015" max="2024" value="2024" step="1">
     </div>
 
     <div class="search-bar">
@@ -110,7 +110,7 @@
       <datalist id="countryList"></datalist>
       <button id="resetSearch">&#x2715;</button>
     </div>
-    <button id="toggleMap" class="toggle-button">Show Changes</button>
+    <button id="toggleMap" class="toggle-button">Show Changes in Happiness</button>
   </div>
 
   <svg id="map" width="100%" height="700" viewBox="0 0 1600 700"></svg>
