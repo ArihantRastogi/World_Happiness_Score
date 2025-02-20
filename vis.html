@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Happiness Score Correlations</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+        .plot {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        select {
+            padding: 8px 16px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Happiness Score Correlations Analysis</h1>
+    <div class="container">
+        <!-- Heatmap Section -->
+        <div class="visualization-block">
+            <h2 class="plot-title">Correlation Heatmap</h2>
+            <div id="heatmap" class="plot"></div>
+        </div>
+    
+        <!-- Scatter Plot Section -->
+        <div class="visualization-block">
+            <h2 class="plot-title">Scatter Plot Comparison</h2>
+            <div id="scatterPlot" class="plot"></div>
+            <div class="plot-header">
+                <div class="controls">
+                    <label for="factorSelect">Select Factor to Compare:</label>
+                    <select id="factorSelect"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        gap: 40px; /* Increased gap between visualizations */
+        padding: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    .visualization-block {
+        flex: 1 1 600px; /* Adjusted base size */
+        max-width: 600px; /* Added max-width */
+        min-width: 400px;
+        height: 800px; /* Added fixed height */
+        padding: 20px;
+    }
+    
+    .plot {
+        width: 100%;
+        height: 800px; /* Increased height */
+    }
+    
+    /* Layout container */
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around; /* More spacing between elements */
+        gap: 25px;
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    /* Styling for each visualization block */
+    .visualization-block {
+        flex: 1 1 42%; /* Reduced width for better spacing */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: var(--card-bg-color, #ffffff);
+        border-radius: var(--border-radius, 12px);
+        box-shadow: var(--shadow, 0 4px 8px rgba(0, 0, 0, 0.1));
+        padding: 15px;
+        transition: all 0.3s ease;
+        min-width: 450px; /* Reduced from 500px */
+    }
+    
+    /* Section titles */
+    .plot-title {
+        font-size: 1.4rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: var(--primary-color, #4a6fa5);
+        text-align: center;
+    }
+    
+    /* Controls section */
+    .controls {
+        background-color: var(--card-bg-color, #ffffff);
+        padding: 10px 12px;
+        border-radius: var(--border-radius, 8px);
+        box-shadow: var(--shadow, 0 3px 5px rgba(0, 0, 0, 0.1));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    /* Plot styling */
+    .plot {
+        width: 100%;
+        height: 500px; /* Reduced from 450px */
+        box-shadow: var(--shadow, 0 3px 6px rgba(0, 0, 0, 0.1));
+        border-radius: var(--border-radius, 8px);
+        background: var(--card-bg-color, #ffffff);
+        transition: all 0.3s ease;
+        flex-grow: 1;
+    }
+    
+    /* Dropdown styling */
+    label {
+        font-weight: 600;
+        color: var(--primary-color, #4a6fa5);
+        font-size: 1rem;
+    }
+    
+    select {
+        padding: 7px 14px;
+        font-size: 0.95rem;
+        border-radius: 6px;
+        border: 2px solid var(--secondary-color, #6b8cae);
+        background-color: white;
+        color: var(--text-color, #333333);
+        cursor: pointer;
+        outline: none;
+        transition: all 0.3s ease;
+        min-width: 200px;
+    }
+    
+    select:hover, select:focus {
+        border-color: var(--primary-color, #4a6fa5);
+        box-shadow: 0 0 5px rgba(74, 111, 165, 0.3);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+        .container {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .visualization-block {
+            width: 100%;
+            max-width: 750px;
+        }
+    }
+    
+    @media (max-width: 600px) {
+        .controls {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    
+        select {
+            width: 100%;
+        }
+    
+        .plot {
+            height: 350px; /* Further reduced for smaller screens */
+        }
+    }
+    </style>
+    
+
+<script>
+d3.csv('data/finalest.csv').then(function(data) {
+    // Add this function to scale GDP nominal values
+    function scaleGDPNominal(value) {
+        return Math.log(value / 10000); // Convert
+
+    }
+
+    // Define factors and their proper scales
+    const factors = [
+        {id: 'happiness_score', name: 'Happiness', scale: [0, 10]},
+        // {id: 'gdp_per_capita', name: 'GDP Per Capita $10k', scale: [0, 2.5]},
+        {id: 'social_support', name: 'Social Support', scale: [0, 1.7]},
+        {id: 'healthy_life_expectancy', name: 'Life Expectancy', scale: [45, 90]},
+        {id: 'freedom_to_make_life_choices', name: 'Freedom', scale: [0, 1]},
+        {id: 'generosity', name: 'Generosity', scale: [0, 0.5]},
+        {id: 'perceptions_of_corruption', name: 'Corruption', scale: [0, 0.7]},
+        {id: 'tax', name: 'Tax Rate', scale: [0, 60]},
+        {id: 'temperature', name: 'Temperature', scale: [-10, 35]},
+        {id: 'divorce_percentage', name: 'Divorce Rates', scale: [0, 100]},
+        {id: 'gdp_nominal', name: 'GDP Nominal (log)', scale: [0, 3]}
+    ];
+    
+    // Populate dropdown with factors
+    const select = document.getElementById('factorSelect');
+    factors.slice(1).forEach(factor => {
+        const option = document.createElement('option');
+        option.value = factor.id;
+        option.textContent = factor.name;
+        select.appendChild(option);
+    });
+    
+    // Normalize data function
+    function normalizeData(value, scale) {
+        return (value - scale[0]) / (scale[1] - scale[0]);
+    }
+    
+    // Calculate correlation matrix with raw data
+    let correlationMatrix = [];
+    const factorIds = factors.map(f => f.id);
+    
+    factorIds.forEach(factor1 => {
+        let row = [];
+        factorIds.forEach(factor2 => {
+            let correlation = calculateCorrelation(data, factor1, factor2);
+            row.push(correlation);
+        });
+        correlationMatrix.push(row);
+    });
+
+    // Sort factors based on correlation with happiness_score
+    const happinessIndex = factorIds.indexOf('happiness_score');
+    const correlationsWithHappiness = correlationMatrix[happinessIndex];
+    
+    // Create array of indices and sort them based on correlations
+    let indices = factors.map((_, i) => i);
+    indices.sort((a, b) => correlationsWithHappiness[b] - correlationsWithHappiness[a]);
+    
+    // Reorder factors and correlation matrix
+    const sortedFactors = indices.map(i => factors[i]);
+    const sortedMatrix = indices.map(i => 
+        indices.map(j => correlationMatrix[i][j])
+    );
+
+    let heatmapData = [{
+    z: correlationMatrix,
+    x: factors.map(f => f.name),
+    y: factors.map(f => f.name),
+    type: 'heatmap',
+    colorscale: [
+        ['0.0', 'rgb(22, 196, 127)'],   // Bright Green
+        ['0.33', 'rgb(22, 196, 127)'],  // Warm Yellow
+        ['0.66', 'rgb(255, 157, 35)'],  // Rich Orange
+        ['1.0', 'rgb(249, 56, 39)']     // Bold Red
+    ],
+    zmin: -1,
+    zmax: 1
+}];
+
+    let heatmapLayout = {
+        
+        title: '',
+        width: 550, // Reduced from 750
+        height: 580, // Slightly increased
+        margin: {t: 150, l: 200, r: 50, b: 100},
+        xaxis: {
+            tickangle: 45
+        }
+    };
+
+    Plotly.newPlot('heatmap', heatmapData, heatmapLayout);
+
+    // Function to create scatter plot
+    function createScatterPlot(factorId) {
+        const factor = factors.find(f => f.id === factorId);
+        if (!factor) return;
+        
+        const scatterData = [{
+            x: data.map(d => {
+                const value = parseFloat(d[factorId]);
+                return factorId === 'gdp_nominal' ? scaleGDPNominal(value) : value;
+            }),
+            y: data.map(d => parseFloat(d.happiness_score)),
+            mode: 'markers',
+            type: 'scatter',
+            text: data.map(d => d.country),
+            marker: {
+                size: 10,
+                color: 'rgba(55, 128, 191, 0.7)',
+                line: {
+                    color: 'rgba(55, 128, 191, 1.0)',
+                    width: 1
+                }
+            },
+            hovertemplate: 
+                '<b>%{text}</b><br>' +
+                factor.name + ': %{x}<br>' +
+                'Happiness Score: %{y}<br>' +
+                '<extra></extra>'
+        }];
+
+        // Calculate trend line with scaled values
+        const x = data.map(d => {
+            const value = parseFloat(d[factorId]);
+            return factorId === 'gdp_nominal' ? scaleGDPNominal(value) : value;
+        }).filter(x => !isNaN(x));
+        const y = data.map(d => parseFloat(d.happiness_score)).filter(y => !isNaN(y));
+        const n = Math.min(x.length, y.length);
+        
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (let i = 0; i < n; i++) {
+            sumX += x[i];
+            sumY += y[i];
+            sumXY += x[i] * y[i];
+            sumX2 += x[i] * x[i];
+        }
+        
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        
+        // Find min/max x values for trendline
+        const minX = Math.min(...x);
+        const maxX = Math.max(...x);
+        
+        // Add trendline
+        scatterData.push({
+            x: [minX, maxX],
+            y: [minX * slope + intercept, maxX * slope + intercept],
+            mode: 'lines',
+            type: 'scatter',
+            name: 'Trend',
+            line: {
+                color: 'rgba(219, 64, 82, 0.7)',
+                width: 2
+            }
+        });
+
+        // Find correlation value
+        const correlation = correlationMatrix[0][factorIds.indexOf(factorId)].toFixed(3);
+
+        const scatterLayout = {
+            // title: `Happiness Score vs ${factor.name} (r = ${correlation})`,
+            showlegend: false,
+            width: 550, // Reduced from 750
+            height: 580, // Slightly increased
+            xaxis: {
+                title: factor.name,
+                range: factor.scale
+            },
+            yaxis: {
+                title: 'Happiness Score',
+                range: [0, 10]
+            },
+            annotations: [{
+                xref: 'paper',
+                yref: 'paper',
+                x: 0.02,
+                y: 0.98,
+                text: `Correlation: ${correlation}`,
+                showarrow: false,
+                font: {
+                    size: 14
+                }
+            }]
+        };
+
+        Plotly.newPlot('scatterPlot', scatterData, scatterLayout);
+    }
+
+    // Initial scatter plot
+    createScatterPlot(select.value);
+
+    // Update scatter plot when selection changes
+    select.addEventListener('change', function() {
+        createScatterPlot(this.value);
+    });
+});
+
+function calculateCorrelation(data, factor1, factor2) {
+    let vals1 = data.map(d => parseFloat(d[factor1])).filter(x => x !== 0 && !isNaN(x));
+    let vals2 = data.map(d => parseFloat(d[factor2])).filter(x => x !== 0 && !isNaN(x));
+
+    let n = Math.min(vals1.length, vals2.length);
+    if (n === 0) return 0; // Return 0 correlation if no valid data points exist
+
+    let sum1 = vals1.reduce((a, b) => a + b, 0);
+    let sum2 = vals2.reduce((a, b) => a + b, 0);
+    
+    let mean1 = sum1 / n;
+    let mean2 = sum2 / n;
+    
+    let cov = 0;
+    let sd1 = 0;
+    let sd2 = 0;
+    
+    for (let i = 0; i < n; i++) {
+        let diff1 = vals1[i] - mean1;
+        let diff2 = vals2[i] - mean2;
+        cov += diff1 * diff2;
+        sd1 += diff1 * diff1;
+        sd2 += diff2 * diff2;
+    }
+    
+    return cov / Math.sqrt(sd1 * sd2);
+}
+
+</script>
+</body>
+</html>
