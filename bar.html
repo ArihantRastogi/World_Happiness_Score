@@ -206,6 +206,32 @@
             transition-delay: 0.2s;
             transform: scale(1);
         }
+
+        .factor-description-container {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 300px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-family: sans-serif;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .factor-description-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .factor-description-text {
+            font-size: 0.9em;
+            line-height: 1.4;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -240,6 +266,10 @@
         </div>
     </div>
     <div id="chart" style="text-align: center;"></div>
+    <div class="factor-description-container">
+        <div class="factor-description-title"></div>
+        <div class="factor-description-text"></div>
+    </div>
     <script>
         // Update dimensions to be responsive
         const margin = {top: 40, right: 160, bottom: 100, left: 60};
@@ -480,6 +510,17 @@
                 .attr("transform", (d, i) => `translate(${width + 10},${i * 20})`)
                 .on("click", function(event, d) {
                     const currentRegion = d3.select("#regionFilter").property("value");
+                    const factorName = d.replace("Explained by: ", "");
+                    
+                    // Update description container
+                    const descContainer = d3.select(".factor-description-container");
+                    descContainer.style("opacity", 1)
+                        .select(".factor-description-title")
+                        .text(factorName);
+                    
+                    descContainer.select(".factor-description-text")
+                        .text(factorDescriptions[factorName]);
+                    
                     drawBars(currentRegion, d);
                 });
 
@@ -503,6 +544,7 @@
                 .attr("transform", `translate(${width + 10},${factors.length * 20})`)
                 .on("click", function() {
                     const currentRegion = d3.select("#regionFilter").property("value");
+                    d3.select(".factor-description-container").style("opacity", 0);
                     drawBars(currentRegion);
                 });
 
@@ -585,6 +627,17 @@
             // Redraw the chart
             drawBars();
         });
+
+        // Add this after your existing variable declarations
+        const factorDescriptions = {
+            "Log GDP per capita": "Measures the economic output per person, adjusted for purchasing power. Higher GDP typically correlates with better living standards and infrastructure.",
+            "Social support": "Reflects whether people have someone to count on in times of trouble. Strong social connections are crucial for mental well-being.",
+            "Healthy life expectancy": "Represents the average number of years a person can expect to live in good health, indicating both healthcare quality and lifestyle factors.",
+            "Freedom to make life choices": "Measures people's perception of their autonomy in life decisions, from career choices to personal matters.",
+            "Generosity": "Indicates how willing people are to help others and contribute to their community, showing social cohesion.",
+            "Perceptions of corruption": "Reflects trust in institutions and government. Lower corruption perception typically correlates with higher satisfaction.",
+            "Dystopia + residual": "A technical baseline representing the theoretical lowest scores, plus unexplained variance in happiness scores."
+        };
     </script>
 </body>
 </html>
