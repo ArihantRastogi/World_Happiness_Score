@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: #333;
+        }
+        #chart {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+        .bar { cursor: pointer; }
+        .legend-item { cursor: pointer; }
+        .legend-item:hover { opacity: 0.8; }
+        .tooltip {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            font-family: sans-serif;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        select, input {
+            padding: 6px;
+            margin-left: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        label {
+            font-weight: bold;
+        }
+        .confidence-legend {
+            font-family: sans-serif;
+            font-size: 10px;
+            font-style: italic;
+        }
+        .search-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .back-button-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        button {
+            all: unset;
+        }
+
+        .button {
+            position: relative;
+            display: inline-flex;
+            height: 3.5rem;
+            align-items: center;
+            border-radius: 9999px;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            font-family: Segoe UI;
+            font-size: 1.2rem;
+            font-weight: 640;
+            color: #fafaf6;
+            letter-spacing: -0.06em;
+        }
+
+        .button-item {
+            background-color: transparent;
+            color: #1d1d1f;
+        }
+
+        .button-item .button-bg {
+            border-color: rgba(255, 208, 116);
+            background-color: rgba(255, 208, 116);
+        }
+
+        .button-inner,
+        .button-inner-hover,
+        .button-inner-static {
+            pointer-events: none;
+            display: block;
+        }
+
+        .button-inner {
+            position: relative;
+        }
+
+        .button-inner-hover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transform: translateY(70%);
+        }
+
+        .button-bg {
+            overflow: hidden;
+            border-radius: 2rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scale(1);
+            transition: transform 1.8s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .button-bg,
+        .button-bg-layer,
+        .button-bg-layers {
+            display: block;
+        }
+
+        .button-bg-layers {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%);
+            top: -60%;
+            aspect-ratio: 1 / 1;
+            width: max(200%, 10rem);
+        }
+
+        .button-bg-layer {
+            border-radius: 9999px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scale(0);
+        }
+
+        .button-bg-layer.-purple {
+            background-color: rgba(163, 116, 255);
+        }
+
+        .button-bg-layer.-turquoise {
+            background-color: rgba(23, 241, 209);
+        }
+
+        .button-bg-layer.-yellow {
+            --tw-bg-opacity: 1;
+            background-color: rgba(255, 208, 116, var(--tw-bg-opacity));
+        }
+
+        .button:hover .button-inner-static {
+            opacity: 0;
+            transform: translateY(-70%);
+            transition:
+                transform 1.4s cubic-bezier(0.19, 1, 0.22, 1),
+                opacity 0.3s linear;
+        }
+
+        .button:hover .button-inner-hover {
+            opacity: 1;
+            transform: translateY(0);
+            transition:
+                transform 1.4s cubic-bezier(0.19, 1, 0.22, 1),
+                opacity 1.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .button:hover .button-bg-layer {
+            transition:
+                transform 1.3s cubic-bezier(0.19, 1, 0.22, 1),
+                opacity 0.3s linear;
+        }
+
+        .button:hover .button-bg-layer-1 {
+            transform: scale(1);
+        }
+
+        .button:hover .button-bg-layer-2 {
+            transition-delay: 0.1s;
+            transform: scale(1);
+        }
+
+        .button:hover .button-bg-layer-3 {
+            transition-delay: 0.2s;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body>
+    <div class="back-button-container">
+        <a href="home.html">
+            <button class="button button-item">
+                <span class="button-bg">
+                    <span class="button-bg-layers">
+                        <span class="button-bg-layer button-bg-layer-1 -purple"></span>
+                        <span class="button-bg-layer button-bg-layer-2 -turquoise"></span>
+                        <span class="button-bg-layer button-bg-layer-3 -yellow"></span>
+                    </span>
+                </span>
+                <span class="button-inner">
+                    <span class="button-inner-static">← Back</span>
+                    <span class="button-inner-hover">[Home]</span>
+                </span>
+            </button>
+        </a>
+    </div>
+    <h1 style="text-align: center;">World Happiness Report 2024</h1>
+    <div class="controls">
+        <div>
+            <label for="regionFilter">Select Region:</label>
+            <select id="regionFilter">
+                <option value="All">All Regions</option>
+            </select>
+        </div>
+        <div class="search-container">
+            <label for="searchInput">Search Country:</label>
+            <input type="text" id="searchInput" placeholder="Enter country name">
+        </div>
+    </div>
+    <div id="chart" style="text-align: center;"></div>
+    <script>
+        // Update dimensions to be responsive
+        const margin = {top: 40, right: 160, bottom: 100, left: 60};
+        const width = window.innerWidth - margin.left - margin.right - 40; // 40px for padding
+        const height = window.innerHeight - margin.top - margin.bottom - 200; // 200px for header and controls
+
+        // Create SVG
+        const svg = d3.select("#chart")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Colors for different factors
+        const colors = d3.schemeTableau10;
+
+        // Load and process data
+        d3.csv("data/WHR_2024_bar.csv").then(function(csvData) {
+            // Define factors
+            const factors = [
+                "Explained by: Log GDP per capita",
+                "Explained by: Social support",
+                "Explained by: Healthy life expectancy",
+                "Explained by: Freedom to make life choices",
+                "Explained by: Generosity",
+                "Explained by: Perceptions of corruption",
+                "Dystopia + residual"
+            ];
+
+            // Set up scales
+            const x = d3.scaleBand()
+                .range([0, width])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .range([height, 0]);
+
+            // Populate region filter
+            const regions = [...new Set(csvData.map(d => d.region))];
+            const regionFilter = d3.select("#regionFilter");
+            regions.forEach(region => {
+                regionFilter.append("option")
+                    .attr("value", region)
+                    .text(region);
+            });
+
+            // Create tooltip
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            // Function to filter and sort data
+            function filterAndSortData(region, searchTerm) {
+                let filteredData = csvData;
+                
+                // Apply region filter
+                if (region !== "All") {
+                    filteredData = filteredData.filter(d => d.region === region);
+                }
+                
+                // Apply search filter
+                if (searchTerm) {
+                    const searchLower = searchTerm.toLowerCase();
+                    filteredData = filteredData.filter(d => 
+                        d["Country name"].toLowerCase().includes(searchLower)
+                    );
+                }
+                
+                return filteredData;
+            }
+
+            // Function to draw bars
+            function drawBars(region = "All", selectedFactor = null) {
+                const searchTerm = d3.select("#searchInput").property("value");
+                
+                // Filter and sort data
+                let filteredData = filterAndSortData(region, searchTerm);
+
+                // Update scales
+                x.domain(filteredData.map(d => d["Country name"]));
+                if(selectedFactor){
+                    y.domain([0, d3.max(filteredData, d => +d[selectedFactor])]);
+                } else {
+                    y.domain([0, d3.max(filteredData, d => +d.upperwhisker)]);
+                }
+
+                // Clear existing elements
+                svg.selectAll(".stack").remove();
+                svg.selectAll(".whisker").remove();
+                svg.selectAll(".axis").remove();
+
+                // Prepare stacked data
+                let stackedData;
+                if (selectedFactor) {
+                    stackedData = d3.stack()
+                        .keys([selectedFactor])
+                        (filteredData.map(d => ({
+                            country: d["Country name"],
+                            [selectedFactor]: +d[selectedFactor]
+                        })));
+                } else {
+                    stackedData = d3.stack()
+                        .keys(factors)
+                        (filteredData.map(d => ({
+                            country: d["Country name"],
+                            ...Object.fromEntries(factors.map(f => [f, +d[f]]))
+                        })));
+                    
+                    // Add confidence interval whiskers
+                    filteredData.forEach(d => {
+                        svg.append("line")
+                            .attr("class", "whisker")
+                            .attr("x1", x(d["Country name"]) + x.bandwidth()/2)
+                            .attr("x2", x(d["Country name"]) + x.bandwidth()/2)
+                            .attr("y1", y(+d.lowerwhisker))
+                            .attr("y2", y(+d.upperwhisker))
+                            .attr("stroke", "black")
+                            .attr("stroke-width", 2);
+
+                        svg.append("line")
+                            .attr("class", "whisker")
+                            .attr("x1", x(d["Country name"]) + x.bandwidth()/4)
+                            .attr("x2", x(d["Country name"]) + x.bandwidth()*3/4)
+                            .attr("y1", y(+d.upperwhisker))
+                            .attr("y2", y(+d.upperwhisker))
+                            .attr("stroke", "black")
+                            .attr("stroke-width", 2);
+
+                        svg.append("line")
+                            .attr("class", "whisker")
+                            .attr("x1", x(d["Country name"]) + x.bandwidth()/4)
+                            .attr("x2", x(d["Country name"]) + x.bandwidth()*3/4)
+                            .attr("y1", y(+d.lowerwhisker))
+                            .attr("y2", y(+d.lowerwhisker))
+                            .attr("stroke", "black")
+                            .attr("stroke-width", 2);
+                    });
+                }
+
+                // Draw bars with initial animation
+                const barGroups = svg.selectAll("g.stack")
+                    .data(stackedData)
+                    .join("g")
+                    .attr("class", "stack")
+                    .attr("fill", (d, i) => selectedFactor ? 
+                        colors[factors.indexOf(selectedFactor)] : 
+                        colors[i]);
+
+                const bars = barGroups.selectAll("rect")
+                    .data(d => d)
+                    .join("rect")
+                    .attr("class", "bar")
+                    .attr("x", d => x(d.data.country))
+                    .attr("width", x.bandwidth())
+                    // Start bars from bottom with 0 height
+                    .attr("y", height)
+                    .attr("height", 0);
+
+                // Animate bars growing up from bottom
+                bars.transition()
+                    .duration(1000)
+                    .delay((d, i) => i * 10) // Stagger the animations
+                    .ease(d3.easeElastic.amplitude(0.5))
+                    .attr("y", d => y(d[1]))
+                    .attr("height", d => y(d[0]) - y(d[1]));
+
+                // Add mouseover/mouseout events after transition
+                bars.on("mouseover", function(event, d) {
+                    const factor = d3.select(this.parentNode).datum().key;
+                    const value = d[1] - d[0];
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`${factor}: ${value.toFixed(3)}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+                // Also animate whiskers if they exist
+                if (!selectedFactor) {
+                    svg.selectAll(".whisker")
+                        .style("opacity", 0)
+                        .transition()
+                        .duration(1000)
+                        .delay((d, i) => i * 10)
+                        .style("opacity", 1);
+                }
+
+                // Add axes
+                svg.append("g")
+                    .attr("class", "axis")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .attr("transform", "rotate(-45)")
+                    .style("text-anchor", "end");
+
+                svg.append("g")
+                    .attr("class", "axis")
+                    .call(d3.axisLeft(y));
+            }
+
+            // Initial draw
+            drawBars();
+
+            // Add title
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2)
+                .attr("text-anchor", "middle")
+                .style("font-size", "16px");
+
+            // Add y-axis label
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left)
+                .attr("x", -height / 2)
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Happiness Score");
+
+            // Create legend
+            const legend = svg.append("g")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", 10)
+                .attr("text-anchor", "start")
+                .selectAll("g")
+                .data(factors)
+                .join("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(${width + 10},${i * 20})`)
+                .on("click", function(event, d) {
+                    const currentRegion = d3.select("#regionFilter").property("value");
+                    drawBars(currentRegion, d);
+                });
+
+            // Add legend colored rectangles
+            legend.append("rect")
+                .attr("x", 0)
+                .attr("width", 19)
+                .attr("height", 19)
+                .attr("fill", (d, i) => colors[i]);
+
+            // Add legend text
+            legend.append("text")
+                .attr("x", 24)
+                .attr("y", 9.5)
+                .attr("dy", "0.32em")
+                .text(d => d.replace("Explained by: ", ""));
+
+            // Add "Show All" button to legend
+            const showAllButton = svg.append("g")
+                .attr("class", "legend-item")
+                .attr("transform", `translate(${width + 10},${factors.length * 20})`)
+                .on("click", function() {
+                    const currentRegion = d3.select("#regionFilter").property("value");
+                    drawBars(currentRegion);
+                });
+
+            showAllButton.append("rect")
+                .attr("x", 0)
+                .attr("width", 19)
+                .attr("height", 19)
+                .attr("fill", "#ccc");
+
+            showAllButton.append("text")
+                .attr("x", 24)
+                .attr("y", 9.5)
+                .attr("dy", "0.32em")
+                .text("Show All");
+
+            // Add confidence interval explanation
+            const confidenceLegend = svg.append("g")
+                .attr("class", "confidence-legend")
+                .attr("transform", `translate(${width + 10},${(factors.length + 2) * 20})`);
+
+            confidenceLegend.append("line")
+                .attr("x1", 0)
+                .attr("x2", 0)
+                .attr("y1", -5)
+                .attr("y2", 5)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+
+            confidenceLegend.append("line")
+                .attr("x1", -5)
+                .attr("x2", 5)
+                .attr("y1", -5)
+                .attr("y2", -5)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+
+            confidenceLegend.append("line")
+                .attr("x1", -5)
+                .attr("x2", 5)
+                .attr("y1", 5)
+                .attr("y2", 5)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+
+            confidenceLegend.append("text")
+                .attr("x", 24)
+                .attr("y", 0)
+                .attr("dy", "0.32em")
+                .text("95% Confidence Interval");
+
+            // Add event listeners
+            regionFilter.on("change", function() {
+                drawBars(this.value);
+            });
+
+            // Add search input event listener
+            d3.select("#searchInput").on("input", function() {
+                const currentRegion = d3.select("#regionFilter").property("value");
+                drawBars(currentRegion);
+            });
+        });
+
+        // Add window resize handler
+        window.addEventListener('resize', function() {
+            // Clear existing chart
+            d3.select("#chart").select("svg").remove();
+            
+            // Redraw with new dimensions
+            const newWidth = window.innerWidth - margin.left - margin.right - 40;
+            const newHeight = window.innerHeight - margin.top - margin.bottom - 200;
+            
+            // Create new SVG with updated dimensions
+            const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", newWidth + margin.left + margin.right)
+                .attr("height", newHeight + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+                
+            // Redraw the chart
+            drawBars();
+        });
+    </script>
+</body>
+</html>
