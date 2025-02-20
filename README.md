@@ -79,5 +79,8 @@ An interactive visualization project analyzing global happiness trends from 2015
   - Social metrics
 
 ## Contributors
-- Project developed by ArihantRastogi and team
+- Project developed by
+    - Arihant Rastogi [GitHub](https://github.com/ArihantRastogi)
+    - Manasi Mundada [GitHub](https://github.com/manasimundada)
+    - Hrishiraj Mitra [GitHub](https://github.com/hrishirajmitra)
 - Part of Data Visualization course project
