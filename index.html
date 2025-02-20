@@ -37,6 +37,10 @@
     <label for="yearSlider">Year: <span id="yearValue">2015</span></label>
     <input type="range" id="yearSlider" min="2015" max="2020" value="2015" step="1">
   </div>
+  <div class="search-bar">
+    <label for="countrySearch">Search Country: </label>
+    <input type="text" id="countrySearch" placeholder="Enter country name">
+  </div>
   <svg id="map" width="2560" height="1600" viewBox="0 0 2560 1600" preserveAspectRatio="xMidYMid meet"></svg>
   <div class="tooltip" style="display: none;"></div>
 
@@ -141,6 +145,24 @@
         updateMap(year);
       });
     }).catch(err => console.error(err));
+
+    function highlightCountry(countryName) {
+      svg.selectAll(".country")
+        .attr("opacity", d =>
+          d.properties.name.toLowerCase() === countryName.toLowerCase() && countryName !== ""
+          ? 1
+          : 0.3
+        )
+        .attr("stroke-width", d =>
+          d.properties.name.toLowerCase() === countryName.toLowerCase()
+          ? 2
+          : 0.5
+        );
+    }
+
+    d3.select("#countrySearch").on("input", function() {
+      highlightCountry(this.value);
+    });
   </script>
 </body>
 </html>
